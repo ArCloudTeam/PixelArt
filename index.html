@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Frame Studio</title>
+  <style>
+    :root {
+      --bg: #15171c;
+      --panel: #20242c;
+      --panel-2: #292e38;
+      --border: #3b4250;
+      --text: #f4f7fb;
+      --muted: #aab2c0;
+      --accent: #6c8cff;
+      --danger: #ff5d73;
+      --shadow: 0 12px 35px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top left, #242b39 0, var(--bg) 45%);
+    }
+    button, input, select { font: inherit; }
+    button {
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+    button:hover { transform: translateY(-1px); border-color: #61708a; }
+    button.active { background: var(--accent); border-color: var(--accent); }
+    button.danger { color: #fff; background: #562b36; border-color: #8a3a4a; }
+    input[type="number"], select {
+      color: var(--text);
+      background: #171a20;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 9px;
+    }
+    input[type="color"] {
+      width: 46px;
+      height: 38px;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--panel-2);
+      cursor: pointer;
+    }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(24,27,33,.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { font-weight: 800; margin-right: 10px; letter-spacing: .2px; }
+    .group { display: flex; align-items: center; gap: 7px; }
+    .label { color: var(--muted); font-size: 13px; }
+    .main {
+      display: grid;
+      grid-template-columns: 220px minmax(320px, 1fr) 230px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+    }
+    .panel {
+      background: rgba(32,36,44,.94);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .panel h3 { margin: 0 0 12px; font-size: 15px; }
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tool-grid button { min-height: 48px; }
+    .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-top: 12px; }
+    .swatch {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .swatch.selected { border-color: white; box-shadow: 0 0 0 2px var(--accent); }
+    .workspace {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      overflow: auto;
+      background:
+        linear-gradient(45deg, #2a2e36 25%, transparent 25%),
+        linear-gradient(-45deg, #2a2e36 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2a2e36 75%),
+        linear-gradient(-45deg, transparent 75%, #2a2e36 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      min-height: 520px;
+      padding: 24px;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+      background: transparent;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .stack { display: grid; gap: 12px; }
+    .field { display: grid; gap: 6px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .status { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .timeline-wrap {
+      padding: 0 14px 14px;
+    }
+    .timeline-panel {
+      background: rgba(32,36,44,.96);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+    .timeline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
+    .timeline {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 2px 8px;
+      min-height: 104px;
+    }
+    .frame-card {
+      position: relative;
+      min-width: 86px;
+      width: 86px;
+      border: 2px solid var(--border);
+      background: #171a20;
+      border-radius: 12px;
+      padding: 7px;
+      cursor: pointer;
+    }
+    .frame-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(108,140,255,.18); }
+    .frame-card canvas { width: 68px; height: 68px; box-shadow: none; background: #fff; }
+    .frame-index { text-align: center; color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .separator { width: 1px; height: 30px; background: var(--border); margin: 0 2px; }
+    .kbd { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+    @media (max-width: 980px) {
+      .main { grid-template-columns: 1fr; }
+      .workspace { order: -1; min-height: 420px; }
+      .panel { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Pixel Frame Studio</div>
+    <div class="group">
+      <span class="label">Tamaño</span>
+      <select id="sizeSelect">
+        <option value="8">8 × 8</option>
+        <option value="16" selected>16 × 16</option>
+        <option value="24">24 × 24</option>
+        <option value="32">32 × 32</option>
+        <option value="48">48 × 48</option>
+        <option value="64">64 × 64</option>
+      </select>
+      <button id="newBtn">Nuevo</button>
+    </div>
+    <div class="separator"></div>
+    <div class="group">
+      <button id="undoBtn">↶ Deshacer</button>
+      <button id="redoBtn">↷ Rehacer</button>
+    </div>
+    <div class="separator"></div>
+    <div class="group">
+      <button id="saveBtn">Guardar proyecto</button>
+      <button id="loadBtn">Cargar proyecto</button>
+      <input id="fileInput" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="panel">
+      <h3>Herramientas</h3>
+      <div class="tool-grid">
+        <button data-tool="pencil" class="active">✏️ Lápiz</button>
+        <button data-tool="eraser">🧽 Borrador</button>
+        <button data-tool="fill">🪣 Relleno</button>
+        <button data-tool="picker">💧 Gotero</button>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <div>
+          <div class="label">Color actual</div>
+          <input id="colorPicker" type="color" value="#111111" />
+        </div>
+        <button id="clearBtn" class="danger">Limpiar</button>
+      </div>
+
+      <h3 style="margin-top:18px;">Paleta</h3>
+      <div id="palette" class="palette"></div>
+    </aside>
+
+    <section class="workspace" id="workspace">
+      <canvas id="canvas" width="512" height="512" aria-label="Lienzo de pixel art"></canvas>
+    </section>
+
+    <aside class="panel stack">
+      <div>
+        <h3>Vista</h3>
+        <div class="field">
+          <label class="label" for="zoomRange">Zoom</label>
+          <input id="zoomRange" type="range" min="256" max="768" step="32" value="512" />
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <label class="label"><input id="gridToggle" type="checkbox" checked /> Mostrar cuadrícula</label>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <label class="label"><input id="onionToggle" type="checkbox" /> Onion skin</label>
+        </div>
+      </div>
+
+      <div>
+        <h3>Exportar</h3>
+        <div class="stack">
+          <button id="exportFrameBtn">PNG del fotograma</button>
+          <button id="exportSheetBtn">Spritesheet PNG</button>
+        </div>
+      </div>
+
+      <div class="status" id="status">
+        Herramienta: Lápiz<br>
+        Fotograma: 1<br>
+        Resolución: 16 × 16
+      </div>
+
+      <div class="status">
+        Atajos: <span class="kbd">P</span> lápiz,
+        <span class="kbd">E</span> borrador,
+        <span class="kbd">F</span> relleno,
+        <span class="kbd">I</span> gotero,
+        <span class="kbd">Ctrl/Cmd+Z</span> deshacer.
+      </div>
+    </aside>
+  </main>
+
+  <footer class="timeline-wrap">
+    <div class="timeline-panel">
+      <div class="timeline-actions">
+        <button id="addFrameBtn">＋ Fotograma</button>
+        <button id="duplicateFrameBtn">Duplicar</button>
+        <button id="deleteFrameBtn" class="danger">Eliminar</button>
+        <div class="separator"></div>
+        <button id="playBtn">▶ Reproducir</button>
+        <label class="label">FPS <input id="fpsInput" type="number" min="1" max="24" value="6" style="width:65px;" /></label>
+      </div>
+      <div id="timeline" class="timeline"></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const timeline = document.getElementById('timeline');
+  const colorPicker = document.getElementById('colorPicker');
+  const sizeSelect = document.getElementById('sizeSelect');
+  const gridToggle = document.getElementById('gridToggle');
+  const onionToggle = document.getElementById('onionToggle');
+  const zoomRange = document.getElementById('zoomRange');
+  const status = document.getElementById('status');
+  const fpsInput = document.getElementById('fpsInput');
+
+  const defaultPalette = [
+    '#111111','#ffffff','#ff595e','#ffca3a','#8ac926',
+    '#1982c4','#6a4c93','#ff924c','#c5ca30','#52b788',
+    '#00b4d8','#4361ee','#9b5de5','#f15bb5','#adb5bd'
+  ];
+
+  let gridSize = 16;
+  let tool = 'pencil';
+  let currentColor = '#111111';
+  let frames = [createEmptyFrame(gridSize)];
+  let currentFrame = 0;
+  let drawing = false;
+  let lastCell = null;
+  let undoStack = [];
+  let redoStack = [];
+  let playTimer = null;
+
+  function createEmptyFrame(size) {
+    return Array.from({ length: size }, () => Array(size).fill(null));
+  }
+
+  function cloneFrame(frame) {
+    return frame.map(row => [...row]);
+  }
+
+  function snapshot() {
+    undoStack.push(JSON.stringify(frames));
+    if (undoStack.length > 60) undoStack.shift();
+    redoStack = [];
+  }
+
+  function restore(serialized) {
+    frames = JSON.parse(serialized);
+    currentFrame = Math.min(currentFrame, frames.length - 1);
+    renderAll();
+  }
+
+  function getCellFromEvent(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / rect.width * gridSize);
+    const y = Math.floor((event.clientY - rect.top) / rect.height * gridSize);
+    return { x: Math.max(0, Math.min(gridSize - 1, x)), y: Math.max(0, Math.min(gridSize - 1, y)) };
+  }
+
+  function setPixel(x, y, value) {
+    frames[currentFrame][y][x] = value;
+  }
+
+  function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+
+  function renderCanvas() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const cellW = w / gridSize;
+    const cellH = h / gridSize;
+    ctx.clearRect(0, 0, w, h);
+
+    if (onionToggle.checked && currentFrame > 0) {
+      const prev = frames[currentFrame - 1];
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          if (prev[y][x]) {
+            ctx.fillStyle = hexToRgba(prev[y][x], .22);
+            ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+          }
+        }
+      }
+    }
+
+    const frame = frames[currentFrame];
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        if (frame[y][x]) {
+          ctx.fillStyle = frame[y][x];
+          ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+        }
+      }
+    }
+
+    if (gridToggle.checked) {
+      ctx.strokeStyle = 'rgba(70,78,92,.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= gridSize; i++) {
+        const px = Math.round(i * cellW) + .5;
+        const py = Math.round(i * cellH) + .5;
+        ctx.moveTo(px, 0); ctx.lineTo(px, h);
+        ctx.moveTo(0, py); ctx.lineTo(w, py);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawPreview(previewCanvas, frame) {
+    const pctx = previewCanvas.getContext('2d');
+    pctx.imageSmoothingEnabled = false;
+    pctx.clearRect(0,0,previewCanvas.width,previewCanvas.height);
+    const cell = previewCanvas.width / gridSize;
+    frame.forEach((row, y) => row.forEach((color, x) => {
+      if (color) {
+        pctx.fillStyle = color;
+        pctx.fillRect(x * cell, y * cell, Math.ceil(cell), Math.ceil(cell));
+      }
+    }));
+  }
+
+  function renderTimeline() {
+    timeline.innerHTML = '';
+    frames.forEach((frame, index) => {
+      const card = document.createElement('div');
+      card.className = 'frame-card' + (index === currentFrame ? ' active' : '');
+      const preview = document.createElement('canvas');
+      preview.width = 68;
+      preview.height = 68;
+      drawPreview(preview, frame);
+      const label = document.createElement('div');
+      label.className = 'frame-index';
+      label.textContent = `#${index + 1}`;
+      card.append(preview, label);
+      card.addEventListener('click', () => {
+        currentFrame = index;
+        renderAll();
+      });
+      timeline.appendChild(card);
+    });
+  }
+
+  function renderStatus() {
+    const names = { pencil: 'Lápiz', eraser: 'Borrador', fill: 'Relleno', picker: 'Gotero' };
+    status.innerHTML = `Herramienta: ${names[tool]}<br>Fotograma: ${currentFrame + 1} de ${frames.length}<br>Resolución: ${gridSize} × ${gridSize}`;
+  }
+
+  function renderAll() {
+    renderCanvas();
+    renderTimeline();
+    renderStatus();
+  }
+
+  function floodFill(startX, startY, replacement) {
+    const frame = frames[currentFrame];
+    const target = frame[startY][startX];
+    if (target === replacement) return;
+    const stack = [[startX, startY]];
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+      if (frame[y][x] !== target) continue;
+      frame[y][x] = replacement;
+      stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+  }
+
+  function useTool(cell, initial = false) {
+    const { x, y } = cell;
+    if (!initial && lastCell && lastCell.x === x && lastCell.y === y) return;
+    lastCell = cell;
+    if (tool === 'pencil') setPixel(x, y, currentColor);
+    if (tool === 'eraser') setPixel(x, y, null);
+    if (tool === 'fill' && initial) floodFill(x, y, currentColor);
+    if (tool === 'picker' && initial) {
+      const picked = frames[currentFrame][y][x];
+      if (picked) {
+        currentColor = picked;
+        colorPicker.value = picked;
+        selectPaletteColor(picked);
+      }
+    }
+    renderCanvas();
+    renderTimeline();
+  }
+
+  function selectTool(nextTool) {
+    tool = nextTool;
+    document.querySelectorAll('[data-tool]').forEach(btn => btn.classList.toggle('active', btn.dataset.tool === tool));
+    renderStatus();
+  }
+
+  function selectPaletteColor(color) {
+    document.querySelectorAll('.swatch').forEach(el => el.classList.toggle('selected', el.dataset.color.toLowerCase() === color.toLowerCase()));
+  }
+
+  function makePalette() {
+    const palette = document.getElementById('palette');
+    defaultPalette.forEach(color => {
+      const swatch = document.createElement('button');
+      swatch.className = 'swatch';
+      swatch.style.background = color;
+      swatch.dataset.color = color;
+      swatch.title = color;
+      swatch.addEventListener('click', () => {
+        currentColor = color;
+        colorPicker.value = color;
+        selectPaletteColor(color);
+        selectTool('pencil');
+      });
+      palette.appendChild(swatch);
+    });
+    selectPaletteColor(currentColor);
+  }
+
+  function resetProject(size) {
+    gridSize = size;
+    frames = [createEmptyFrame(size)];
+    currentFrame = 0;
+    undoStack = [];
+    redoStack = [];
+    sizeSelect.value = String(size);
+    stopPlayback();
+    renderAll();
+  }
+
+  function exportFrame(frame, filename) {
+    const out = document.createElement('canvas');
+    out.width = gridSize;
+    out.height = gridSize;
+    const octx = out.getContext('2d');
+    frame.forEach((row, y) => row.forEach((color, x) => {
+      if (color) { octx.fillStyle = color; octx.fillRect(x, y, 1, 1); }
+    }));
+    downloadCanvas(out, filename);
+  }
+
+  function downloadCanvas(target, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = target.toDataURL('image/png');
+    link.click();
+  }
+
+  function stopPlayback() {
+    if (playTimer) clearInterval(playTimer);
+    playTimer = null;
+    document.getElementById('playBtn').textContent = '▶ Reproducir';
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    drawing = true;
+    lastCell = null;
+    if (tool !== 'picker') snapshot();
+    useTool(getCellFromEvent(e), true);
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!drawing || tool === 'fill' || tool === 'picker') return;
+    useTool(getCellFromEvent(e));
+  });
+  canvas.addEventListener('pointerup', () => { drawing = false; lastCell = null; });
+  canvas.addEventListener('pointercancel', () => { drawing = false; lastCell = null; });
+
+  document.querySelectorAll('[data-tool]').forEach(btn => btn.addEventListener('click', () => selectTool(btn.dataset.tool)));
+  colorPicker.addEventListener('input', e => { currentColor = e.target.value; selectPaletteColor(currentColor); selectTool('pencil'); });
+  gridToggle.addEventListener('change', renderCanvas);
+  onionToggle.addEventListener('change', renderCanvas);
+  zoomRange.addEventListener('input', e => {
+    const size = Number(e.target.value);
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+  });
+
+  document.getElementById('newBtn').addEventListener('click', () => {
+    if (confirm('¿Crear un proyecto nuevo? Se perderán los cambios no guardados.')) resetProject(Number(sizeSelect.value));
+  });
+  sizeSelect.addEventListener('change', () => {
+    if (confirm('Cambiar el tamaño reiniciará el proyecto.')) resetProject(Number(sizeSelect.value));
+    else sizeSelect.value = String(gridSize);
+  });
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    snapshot();
+    frames[currentFrame] = createEmptyFrame(gridSize);
+    renderAll();
+  });
+
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    if (!undoStack.length) return;
+    redoStack.push(JSON.stringify(frames));
+    restore(undoStack.pop());
+  });
+  document.getElementById('redoBtn').addEventListener('click', () => {
+    if (!redoStack.length) return;
+    undoStack.push(JSON.stringify(frames));
+    restore(redoStack.pop());
+  });
+
+  document.getElementById('addFrameBtn').addEventListener('click', () => {
+    snapshot();
+    frames.splice(currentFrame + 1, 0, createEmptyFrame(gridSize));
+    currentFrame++;
+    renderAll();
+  });
+  document.getElementById('duplicateFrameBtn').addEventListener('click', () => {
+    snapshot();
+    frames.splice(currentFrame + 1, 0, cloneFrame(frames[currentFrame]));
+    currentFrame++;
+    renderAll();
+  });
+  document.getElementById('deleteFrameBtn').addEventListener('click', () => {
+    if (frames.length === 1) return alert('Debe existir al menos un fotograma.');
+    snapshot();
+    frames.splice(currentFrame, 1);
+    currentFrame = Math.min(currentFrame, frames.length - 1);
+    renderAll();
+  });
+
+  document.getElementById('playBtn').addEventListener('click', () => {
+    if (playTimer) return stopPlayback();
+    const fps = Math.max(1, Math.min(24, Number(fpsInput.value) || 6));
+    document.getElementById('playBtn').textContent = '■ Detener';
+    playTimer = setInterval(() => {
+      currentFrame = (currentFrame + 1) % frames.length;
+      renderAll();
+    }, 1000 / fps);
+  });
+
+  document.getElementById('exportFrameBtn').addEventListener('click', () => exportFrame(frames[currentFrame], `pixel-frame-${currentFrame + 1}.png`));
+  document.getElementById('exportSheetBtn').addEventListener('click', () => {
+    const sheet = document.createElement('canvas');
+    sheet.width = gridSize * frames.length;
+    sheet.height = gridSize;
+    const sctx = sheet.getContext('2d');
+    frames.forEach((frame, frameIndex) => frame.forEach((row, y) => row.forEach((color, x) => {
+      if (color) { sctx.fillStyle = color; sctx.fillRect(frameIndex * gridSize + x, y, 1, 1); }
+    })));
+    downloadCanvas(sheet, 'spritesheet.png');
+  });
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const project = { version: 1, gridSize, frames, fps: Number(fpsInput.value) || 6 };
+    const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = 'pixel-frame-project.json';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+  document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const project = JSON.parse(await file.text());
+      if (!project.gridSize || !Array.isArray(project.frames)) throw new Error('Formato inválido');
+      gridSize = project.gridSize;
+      frames = project.frames;
+      currentFrame = 0;
+      fpsInput.value = project.fps || 6;
+      sizeSelect.value = String(gridSize);
+      undoStack = [];
+      redoStack = [];
+      renderAll();
+    } catch {
+      alert('No se pudo cargar el proyecto.');
+    }
+    e.target.value = '';
+  });
+
+  window.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      document.getElementById(e.shiftKey ? 'redoBtn' : 'undoBtn').click();
+      return;
+    }
+    const map = { p: 'pencil', e: 'eraser', f: 'fill', i: 'picker' };
+    if (map[e.key.toLowerCase()] && !['INPUT','SELECT'].includes(document.activeElement.tagName)) selectTool(map[e.key.toLowerCase()]);
+  });
+
+  makePalette();
+  canvas.style.width = '512px';
+  canvas.style.height = '512px';
+  renderAll();
+})();
+</script>
+</body>
+</html>
