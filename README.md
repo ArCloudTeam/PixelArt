@@ -169,4 +169,8 @@ The application is designed for modern browsers with Canvas and ES6 JavaScript s
 
 ## License
 
-This project does not currently include a license. Before publishing it or accepting contributions, add a `LICENSE` file using a license of your choice, such as the MIT License.
+This project is available under the Pixel Frame Studio Personal Use License.
+
+You may use and modify the application for personal, private, and non-commercial purposes. Commercial use, redistribution, publication, sublicensing, and resale are not permitted without prior written permission.
+
+See the LICENSE file for the complete terms.
